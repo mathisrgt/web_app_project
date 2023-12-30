@@ -1,19 +1,45 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-var express_1 = require("express");
-var bodyParser = require("body-parser");
-var app = (0, express_1.default)();
-var port = process.env.PORT || 3000;
+const express_1 = __importDefault(require("express"));
+const bodyParser = __importStar(require("body-parser"));
+const app = (0, express_1.default)();
+const port = process.env.PORT || 3000;
 app.use(bodyParser.json());
-var cards = [];
-var cardIdCounter = 1;
-app.post('/api/cards', function (req, res) {
+const cards = [];
+let cardIdCounter = 1;
+app.post('/api/cards', (req, res) => {
     try {
-        var _a = req.body, question = _a.question, answer = _a.answer;
-        var newCard = {
+        const { question, answer } = req.body;
+        const newCard = {
             id: cardIdCounter.toString(),
-            question: question,
-            answer: answer,
+            question,
+            answer,
         };
         cardIdCounter++;
         cards.push(newCard);
@@ -23,14 +49,14 @@ app.post('/api/cards', function (req, res) {
         res.status(500).json({ message: 'Erreur lors de la création de la carte mémoire.' });
     }
 });
-app.get('/api/cards', function (req, res) {
+app.get('/api/cards', (req, res) => {
     res.status(200).json(cards);
 });
-app.put('/api/cards/:id', function (req, res) {
+app.put('/api/cards/:id', (req, res) => {
     try {
-        var id_1 = req.params.id;
-        var _a = req.body, question = _a.question, answer = _a.answer;
-        var existingCard = cards.find(function (card) { return card.id === id_1; });
+        const { id } = req.params;
+        const { question, answer } = req.body;
+        const existingCard = cards.find((card) => card.id === id);
         if (!existingCard) {
             res.status(404).json({ message: 'Carte mémoire non trouvée.' });
             return;
@@ -43,10 +69,10 @@ app.put('/api/cards/:id', function (req, res) {
         res.status(500).json({ message: 'Erreur lors de la mise à jour de la carte mémoire.' });
     }
 });
-app.delete('/api/cards/:id', function (req, res) {
+app.delete('/api/cards/:id', (req, res) => {
     try {
-        var id_2 = req.params.id;
-        var index = cards.findIndex(function (card) { return card.id === id_2; });
+        const { id } = req.params;
+        const index = cards.findIndex((card) => card.id === id);
         if (index === -1) {
             res.status(404).json({ message: 'Carte mémoire non trouvée.' });
             return;
@@ -58,6 +84,7 @@ app.delete('/api/cards/:id', function (req, res) {
         res.status(500).json({ message: 'Erreur lors de la suppression de la carte mémoire.' });
     }
 });
-app.listen(port, function () {
-    console.log("Le serveur est en cours d'ex\u00E9cution sur le port ".concat(port));
+app.listen(port, () => {
+    console.log(`Le serveur est en cours d'exécution sur le port ${port}`);
 });
+//# sourceMappingURL=index.js.map
