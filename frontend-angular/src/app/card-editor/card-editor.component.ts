@@ -7,6 +7,7 @@ import { Component } from '@angular/core';
   templateUrl: './card-editor.component.html',
   styleUrl: './card-editor.component.css'
 })
+
 export class CardEditorComponent {
 
 }
