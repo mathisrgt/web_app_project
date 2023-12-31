@@ -26,65 +26,118 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
 const bodyParser = __importStar(require("body-parser"));
+const express_1 = __importDefault(require("express"));
+const database_1 = require("./database");
+const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
+const swagger_1 = __importDefault(require("./swagger"));
+const express_session_1 = __importDefault(require("express-session"));
 const app = (0, express_1.default)();
 const port = process.env.PORT || 3000;
 app.use(bodyParser.json());
-const cards = [];
-let cardIdCounter = 1;
-app.post('/api/cards', (req, res) => {
+app.use((0, express_session_1.default)({ secret: 'your_session_secret', resave: false, saveUninitialized: true }));
+app.use('/api-docs', swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swagger_1.default));
+// Middleware to check if the user is authenticated
+const isAuthenticated = (req, res, next) => {
+    if (req.session && req.session.user) {
+        next();
+    }
+    else {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+};
+app.post('/api/register', async (req, res) => {
     try {
-        const { question, answer } = req.body;
-        const newCard = {
-            id: cardIdCounter.toString(),
-            question,
-            answer,
-        };
-        cardIdCounter++;
-        cards.push(newCard);
-        res.status(200).json(newCard);
+        const { username, password } = req.body;
+        const user = await database_1.User.createUser({ username, password });
+        res.json({ success: true });
     }
     catch (error) {
-        res.status(500).json({ message: 'Erreur lors de la création de la carte mémoire.' });
+        console.error('Error registering user:', error);
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
 });
-app.get('/api/cards', (req, res) => {
-    res.status(200).json(cards);
-});
-app.put('/api/cards/:id', (req, res) => {
+app.post('/api/login', async (req, res) => {
     try {
-        const { id } = req.params;
-        const { question, answer } = req.body;
-        const existingCard = cards.find((card) => card.id === id);
-        if (!existingCard) {
-            res.status(404).json({ message: 'Carte mémoire non trouvée.' });
-            return;
+        const { username, password } = req.body;
+        const user = await database_1.User.findOne({ where: { username } });
+        if (user && (await database_1.User.comparePassword(password, user.password))) {
+            // Create a session with user information
+            req.session.user = { userId: user.id, username: user.username };
+            res.json({ success: true, message: 'Login successful' });
         }
-        existingCard.question = question;
-        existingCard.answer = answer;
-        res.status(200).json(existingCard);
-    }
-    catch (error) {
-        res.status(500).json({ message: 'Erreur lors de la mise à jour de la carte mémoire.' });
-    }
-});
-app.delete('/api/cards/:id', (req, res) => {
-    try {
-        const { id } = req.params;
-        const index = cards.findIndex((card) => card.id === id);
-        if (index === -1) {
-            res.status(404).json({ message: 'Carte mémoire non trouvée.' });
-            return;
+        else {
+            res.status(401).json({ success: false, error: 'Invalid username or password' });
         }
-        cards.splice(index, 1);
-        res.status(200).json({ message: 'Carte mémoire supprimée avec succès.' });
     }
     catch (error) {
-        res.status(500).json({ message: 'Erreur lors de la suppression de la carte mémoire.' });
+        console.error('Error logging in user:', error);
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
 });
-app.listen(port, () => {
-    console.log(`Le serveur est en cours d'exécution sur le port ${port}`);
+app.get('/api/cards', isAuthenticated, async (req, res) => {
+    try {
+        const userId = req.session.user.userId;
+        const user = await database_1.User.findByPk(userId);
+        if (user) {
+            const cards = await database_1.Card.findAll({
+                where: { UserId: userId },
+                attributes: ['id', 'title', 'question', 'answer'],
+            });
+            res.json({ success: true, cards });
+        }
+        else {
+            res.status(404).json({ success: false, error: 'User not found' });
+        }
+    }
+    catch (error) {
+        console.error('Error fetching user cards:', error);
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
+});
+app.post('/api/cards', isAuthenticated, async (req, res) => {
+    try {
+        const { title, question, answer } = req.body;
+        const userId = req.session.user.userId;
+        const user = await database_1.User.findByPk(userId);
+        if (user) {
+            const card = await database_1.Card.create({ title, question, answer, UserId: userId });
+            res.json({ success: true });
+        }
+        else {
+            res.status(404).json({ success: false, error: 'User not found' });
+        }
+    }
+    catch (error) {
+        console.error('Error creating card:', error);
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
+});
+app.delete('/api/cards/:cardId', isAuthenticated, async (req, res) => {
+    try {
+        const cardId = parseInt(req.params.cardId, 10);
+        const userId = req.session.user.userId;
+        const card = await database_1.Card.findOne({ where: { id: cardId, UserId: userId } });
+        if (card) {
+            await card.destroy();
+            res.json({ success: true, message: 'Card deleted successfully' });
+        }
+        else {
+            res.status(404).json({ success: false, error: 'Card not found' });
+        }
+    }
+    catch (error) {
+        console.error('Error deleting card:', error);
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
+});
+(0, database_1.initializeDatabase)()
+    .then(() => {
+    app.listen(port, () => {
+        console.log(`Server is running on http://localhost:${port}`);
+    });
+})
+    .catch((error) => {
+    console.error('Error initializing database:', error);
 });
 //# sourceMappingURL=index.js.map
