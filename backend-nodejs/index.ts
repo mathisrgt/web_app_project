@@ -56,6 +56,23 @@ app.post('/api/login', async (req: Request, res: Response) => {
     }
 });
 
+app.post('/api/logout', isAuthenticated, (req: Request, res: Response) => {
+    try {
+        // Destroy the session to log out the user
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Error logging out:', err);
+                res.status(500).json({ success: false, error: 'Internal Server Error' });
+            } else {
+                res.json({ success: true, message: 'Logout successful' });
+            }
+        });
+    } catch (error) {
+        console.error('Error logging out user:', error);
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
+});
+
 app.get('/api/cards', isAuthenticated, async (req: Request, res: Response) => {
     try {
         const userId = req.session.user.userId;

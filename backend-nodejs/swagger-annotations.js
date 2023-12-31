@@ -65,6 +65,23 @@
  */
 /**
  * @swagger
+ * /api/logout:
+ *   post:
+ *     summary: Log out the current user
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Success
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal Server Error
+ */
+/**
+ * @swagger
  * /api/cards:
  *   get:
  *     summary: Get user's cards
