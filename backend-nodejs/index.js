@@ -26,13 +26,102 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
 const bodyParser = __importStar(require("body-parser"));
+const database_1 = require("./database");
+const sequelize_1 = require("sequelize");
+const express_1 = __importDefault(require("express"));
+async function startApp() {
+    database_1.sequelize.sync()
+        .then(() => {
+        console.log('User table has been created or updated.');
+    })
+        .catch((error) => {
+        console.error('Error syncing User table:', error);
+    });
+}
+startApp();
+const List = database_1.sequelize.define('List', {
+    id: {
+        type: sequelize_1.DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true,
+    },
+    idUser: {
+        type: sequelize_1.DataTypes.INTEGER,
+        allowNull: false,
+    },
+    nbDisplayed: {
+        type: sequelize_1.DataTypes.INTEGER,
+        allowNull: false,
+    },
+    learned: {
+        type: sequelize_1.DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
+}, {
+    tableName: 'Lists', // Specify the table name
+    timestamps: false,
+});
+List.sync();
 const app = (0, express_1.default)();
 const port = process.env.PORT || 3000;
 app.use(bodyParser.json());
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/test.html');
+});
+// Create a new List item
+app.post('/api/lists', async (req, res) => {
+    try {
+        const { idUser, nbDisplayed, learned } = req.body;
+        const newList = await List.create({
+            idUser,
+            nbDisplayed,
+            learned,
+        });
+        res.status(201).json(newList.toJSON());
+    }
+    catch (error) {
+        console.error('Error inserting values into List table:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
 const cards = [];
 let cardIdCounter = 1;
+const User = database_1.sequelize.define('User', {
+    // Define the model attributes (columns)
+    id: {
+        type: sequelize_1.DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true,
+    },
+    username: {
+        type: sequelize_1.DataTypes.STRING,
+        allowNull: false,
+    },
+    password: {
+        type: sequelize_1.DataTypes.STRING,
+        allowNull: false,
+    },
+    // Add more attributes as needed
+}, {
+// Define additional options if necessary
+// For example, tableName: 'Users' to specify the table name
+});
+/*
+List.create({
+    id:1,
+    idUser: 1,
+    nbDisplayed: 1,
+    learned: true,
+})
+    .then(newListItem => {
+        console.log('New List Item created:', newListItem.toJSON());
+    })
+    .catch(error => {
+        console.error('Error creating List Item:', error);
+    });
+*/
 app.post('/api/cards', (req, res) => {
     try {
         const { question, answer } = req.body;
