@@ -27,153 +27,117 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const bodyParser = __importStar(require("body-parser"));
-const database_1 = require("./database");
-const sequelize_1 = require("sequelize");
 const express_1 = __importDefault(require("express"));
-async function startApp() {
-    database_1.sequelize.sync()
-        .then(() => {
-        console.log('User table has been created or updated.');
-    })
-        .catch((error) => {
-        console.error('Error syncing User table:', error);
-    });
-}
-startApp();
-const List = database_1.sequelize.define('List', {
-    id: {
-        type: sequelize_1.DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true,
-    },
-    idUser: {
-        type: sequelize_1.DataTypes.INTEGER,
-        allowNull: false,
-    },
-    nbDisplayed: {
-        type: sequelize_1.DataTypes.INTEGER,
-        allowNull: false,
-    },
-    learned: {
-        type: sequelize_1.DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-    },
-}, {
-    tableName: 'Lists', // Specify the table name
-    timestamps: false,
-});
-List.sync();
+const database_1 = require("./database");
+const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
+const swagger_1 = __importDefault(require("./swagger"));
+const express_session_1 = __importDefault(require("express-session"));
 const app = (0, express_1.default)();
 const port = process.env.PORT || 3000;
 app.use(bodyParser.json());
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/test.html');
-});
-// Create a new List item
-app.post('/api/lists', async (req, res) => {
+app.use((0, express_session_1.default)({ secret: 'your_session_secret', resave: false, saveUninitialized: true }));
+app.use('/api-docs', swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swagger_1.default));
+// Middleware to check if the user is authenticated
+const isAuthenticated = (req, res, next) => {
+    if (req.session && req.session.user) {
+        next();
+    }
+    else {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+};
+app.post('/api/register', async (req, res) => {
     try {
-        const { idUser, nbDisplayed, learned } = req.body;
-        const newList = await List.create({
-            idUser,
-            nbDisplayed,
-            learned,
-        });
-        res.status(201).json(newList.toJSON());
+        const { username, password } = req.body;
+        const user = await database_1.User.createUser({ username, password });
+        res.json({ success: true });
     }
     catch (error) {
-        console.error('Error inserting values into List table:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        console.error('Error registering user:', error);
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
     }
 });
-const cards = [];
-let cardIdCounter = 1;
-const User = database_1.sequelize.define('User', {
-    // Define the model attributes (columns)
-    id: {
-        type: sequelize_1.DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true,
-    },
-    username: {
-        type: sequelize_1.DataTypes.STRING,
-        allowNull: false,
-    },
-    password: {
-        type: sequelize_1.DataTypes.STRING,
-        allowNull: false,
-    },
-    // Add more attributes as needed
-}, {
-// Define additional options if necessary
-// For example, tableName: 'Users' to specify the table name
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        const user = await database_1.User.findOne({ where: { username } });
+        if (user && (await database_1.User.comparePassword(password, user.password))) {
+            // Create a session with user information
+            req.session.user = { userId: user.id, username: user.username };
+            res.json({ success: true, message: 'Login successful' });
+        }
+        else {
+            res.status(401).json({ success: false, error: 'Invalid username or password' });
+        }
+    }
+    catch (error) {
+        console.error('Error logging in user:', error);
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
 });
-/*
-List.create({
-    id:1,
-    idUser: 1,
-    nbDisplayed: 1,
-    learned: true,
-})
-    .then(newListItem => {
-        console.log('New List Item created:', newListItem.toJSON());
-    })
-    .catch(error => {
-        console.error('Error creating List Item:', error);
+app.get('/api/cards', isAuthenticated, async (req, res) => {
+    try {
+        const userId = req.session.user.userId;
+        const user = await database_1.User.findByPk(userId);
+        if (user) {
+            const cards = await database_1.Card.findAll({
+                where: { UserId: userId },
+                attributes: ['id', 'title', 'question', 'answer'],
+            });
+            res.json({ success: true, cards });
+        }
+        else {
+            res.status(404).json({ success: false, error: 'User not found' });
+        }
+    }
+    catch (error) {
+        console.error('Error fetching user cards:', error);
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
+});
+app.post('/api/cards', isAuthenticated, async (req, res) => {
+    try {
+        const { title, question, answer } = req.body;
+        const userId = req.session.user.userId;
+        const user = await database_1.User.findByPk(userId);
+        if (user) {
+            const card = await database_1.Card.create({ title, question, answer, UserId: userId });
+            res.json({ success: true });
+        }
+        else {
+            res.status(404).json({ success: false, error: 'User not found' });
+        }
+    }
+    catch (error) {
+        console.error('Error creating card:', error);
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
+});
+app.delete('/api/cards/:cardId', isAuthenticated, async (req, res) => {
+    try {
+        const cardId = parseInt(req.params.cardId, 10);
+        const userId = req.session.user.userId;
+        const card = await database_1.Card.findOne({ where: { id: cardId, UserId: userId } });
+        if (card) {
+            await card.destroy();
+            res.json({ success: true, message: 'Card deleted successfully' });
+        }
+        else {
+            res.status(404).json({ success: false, error: 'Card not found' });
+        }
+    }
+    catch (error) {
+        console.error('Error deleting card:', error);
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
+});
+(0, database_1.initializeDatabase)()
+    .then(() => {
+    app.listen(port, () => {
+        console.log(`Server is running on http://localhost:${port}`);
     });
-*/
-app.post('/api/cards', (req, res) => {
-    try {
-        const { question, answer } = req.body;
-        const newCard = {
-            id: cardIdCounter.toString(),
-            question,
-            answer,
-        };
-        cardIdCounter++;
-        cards.push(newCard);
-        res.status(200).json(newCard);
-    }
-    catch (error) {
-        res.status(500).json({ message: 'Erreur lors de la création de la carte mémoire.' });
-    }
-});
-app.get('/api/cards', (req, res) => {
-    res.status(200).json(cards);
-});
-app.put('/api/cards/:id', (req, res) => {
-    try {
-        const { id } = req.params;
-        const { question, answer } = req.body;
-        const existingCard = cards.find((card) => card.id === id);
-        if (!existingCard) {
-            res.status(404).json({ message: 'Carte mémoire non trouvée.' });
-            return;
-        }
-        existingCard.question = question;
-        existingCard.answer = answer;
-        res.status(200).json(existingCard);
-    }
-    catch (error) {
-        res.status(500).json({ message: 'Erreur lors de la mise à jour de la carte mémoire.' });
-    }
-});
-app.delete('/api/cards/:id', (req, res) => {
-    try {
-        const { id } = req.params;
-        const index = cards.findIndex((card) => card.id === id);
-        if (index === -1) {
-            res.status(404).json({ message: 'Carte mémoire non trouvée.' });
-            return;
-        }
-        cards.splice(index, 1);
-        res.status(200).json({ message: 'Carte mémoire supprimée avec succès.' });
-    }
-    catch (error) {
-        res.status(500).json({ message: 'Erreur lors de la suppression de la carte mémoire.' });
-    }
-});
-app.listen(port, () => {
-    console.log(`Le serveur est en cours d'exécution sur le port ${port}`);
+})
+    .catch((error) => {
+    console.error('Error initializing database:', error);
 });
 //# sourceMappingURL=index.js.map
