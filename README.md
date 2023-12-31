@@ -16,20 +16,20 @@ This web application features :
 
 ### Login
 
-Link: http://localhost:4200/login
+Link: http://localhost:4200/login<br/>
 Allows you to log in to your user account. Lists and their cards are assigned to a single user and cannot be viewed by others.
 
 ### Dashboard
 
-Link: http://localhost:4200/dashboard
+Link: http://localhost:4200/dashboard<br/>
 The dashboard is the main page of the web app, where you can observe your progress on the learning cards through graphics. Underneath, you have access to all your lists, which you can start or modify.
 
 ### Editor
 
-Link: http://localhost:4200/editor/[listId]
+Link: http://localhost:4200/editor/[listId]<br/>
 The editor allows you to modify the information on a list, and to add, modify or delete the learning cards it contains.
 
 ### Learn
 
-Link: http://localhost:4200/learn/[listId]/[cardId]
+Link: http://localhost:4200/learn/[listId]/[cardId]<br/>
 The learning page appears when a list is launched to test your knowledge. It displays the question, possible answers, a submit button and then corrects you with an explanation of the answer.
