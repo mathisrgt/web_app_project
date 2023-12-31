@@ -26,10 +26,10 @@ The dashboard is the main page of the web app, where you can observe your progre
 
 ### Editor
 
-Link: http://localhost:4200/editor/**listId**
+Link: http://localhost:4200/editor/[listId]
 The editor allows you to modify the information on a list, and to add, modify or delete the learning cards it contains.
 
 ### Learn
 
-Link: http://localhost:4200/learn/**listId**/**cardId**
+Link: http://localhost:4200/learn/[listId]/[cardId]
 The learning page appears when a list is launched to test your knowledge. It displays the question, possible answers, a submit button and then corrects you with an explanation of the answer.
