@@ -1,4 +1,4 @@
-to make the database work u just need to add a user postgres and password postgres to your pgadmin.
+to make the database work you just need to add a user postgres and password postgres to your pgadmin.
 
 To launch the back end you have to execute the index.js
 
